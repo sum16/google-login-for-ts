@@ -1,26 +1,60 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { CognitoHostedUIIdentityProvider } from "@aws-amplify/auth";
+import { Auth, Hub } from "aws-amplify";
+import { useEffect, useState } from "react";
 
-function App() {
+const App = () => {
+  const [user, setUser] = useState(null);
+  const [customState, setCustomState] = useState(null);
+
+  useEffect(() => {
+    Hub.listen("auth", ({ payload: { event, data } }) => {
+      console.log({ event });
+      console.log({ data });
+
+      switch (event) {
+        case "signIn":
+          setUser(data);
+          break;
+        case "signOut":
+          setUser(null);
+          break;
+        case "customOAuthState":
+          setCustomState(data);
+      }
+    });
+
+    Auth.currentAuthenticatedUser()
+      .then((user) => {
+        console.log(user);
+        setUser(user);
+      })
+      .catch(() => console.log("Not signed in"));
+  }, []);
+
+  useEffect(() => {
+    console.log({ user });
+    console.log({ customState });
+  }, [customState, user]);
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
+      <p>User: {user ? "ログイン成功" : "None"}</p>
+      {user ? (
+        // amplifyのサインアウト機能
+        <button onClick={() => Auth.signOut()}>Sign Out</button>
+      ) : (
+        <button
+          onClick={() =>
+            Auth.federatedSignIn({
+              provider: CognitoHostedUIIdentityProvider.Google,
+            })
+          }
         >
-          Learn React
-        </a>
-      </header>
+          Open Google
+        </button>
+      )}
     </div>
   );
-}
+};
 
 export default App;
